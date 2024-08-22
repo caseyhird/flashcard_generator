@@ -24,20 +24,8 @@ async def create_upload_file(file: UploadFile = File(...)):
     print(f"Metadata: {pdf.metadata}")
 
     text = ""
-    for page in pdf.pages[:5]:
+    for page in pdf.pages:
         text += page.extract_text()
     print(f"Text preview: {text}")
-
-    return {"filename": file.filename}
-
-
-
-    contents = await file.read()
-    print(f"contents type {type(contents)}")
-    print(f"contents size {len(contents)}")
-    decoded_contents = contents.decode('utf-8', errors='ignore')
-    print(f"decoded_contents type {type(decoded_contents)}")
-    print(f"decoded_contents size {len(decoded_contents)}")
-    print(f"decoded_contents preview {decoded_contents[50000:51000]}")
 
     return {"filename": file.filename}
