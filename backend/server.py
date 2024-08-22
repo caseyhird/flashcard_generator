@@ -25,3 +25,6 @@ async def create_upload_file(file: UploadFile = File(...)) -> List[FlashCard]:
     print(f"Generated {len(flashcards)} flashcards")
     return flashcards
 
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run(app)
