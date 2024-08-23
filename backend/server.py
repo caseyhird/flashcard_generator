@@ -27,4 +27,4 @@ async def create_upload_file(file: UploadFile = File(...)) -> List[FlashCard]:
 
 if __name__ == '__main__':
     import uvicorn
-    uvicorn.run(app)
+    uvicorn.run(app, port = 80)
