@@ -17,6 +17,7 @@ ANSWER_PROMPT = """Use these sources from my notes to answer a question: {source
 Here's the question I want to answer. Give me the answer to this question and nothing else. 
 Keep your answer to no more than ~20 words. {question}  """
 VECTOR_DB_CHUNK_SIZE = 500
+
 # TODO define LLM and embedding model choices
 
 @dataclass
