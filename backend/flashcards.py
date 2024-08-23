@@ -4,11 +4,11 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.vectorstores.base import VectorStore
 from langchain_core.embeddings.embeddings import Embeddings
+from langchain_together.embeddings import TogetherEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents.base import Document
 from dataclasses import dataclass
 from langchain_openai import ChatOpenAI
-from langchain_huggingface.embeddings.huggingface import HuggingFaceEmbeddings
 import os
 
 QUESTION_PROMPT = """Here are some notes that I took: {pdf_content}. 
@@ -112,7 +112,7 @@ def generate_flashcards(
 
     pdf_content_chunks = chunk_pdf_for_questions_prompt(text) 
     questions = gen_questions(llm, pdf_content_chunks)
-    vector_store = gen_vector_store(text, HuggingFaceEmbeddings())
+    vector_store = gen_vector_store(text, TogetherEmbeddings())
     
     flashcards = []
     for question in questions: 
