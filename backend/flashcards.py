@@ -104,6 +104,7 @@ def gen_answer(llm: BaseChatModel, question: str, sources: List[str]) -> str:
 def generate_flashcards(
         text: str
     ) -> List[FlashCard]:
+    # TODO add logging
     llm = ChatOpenAI(
         base_url="https://api.together.xyz/v1",
         api_key=os.environ["TOGETHER_API_KEY"],
