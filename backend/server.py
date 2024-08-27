@@ -5,6 +5,7 @@ from flashcards import generate_flashcards, FlashCard
 from typing import List
 import logging
 import sys
+from fastapi.middleware.cors import CORSMiddleware
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -13,6 +14,19 @@ logging.basicConfig(
 )
 
 app = FastAPI()
+
+origins = [
+    "http://localhost:5173",
+    "https://flashcard-frontend-rosy.vercel.app/"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def read_root():
