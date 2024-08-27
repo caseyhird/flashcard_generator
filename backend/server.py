@@ -17,7 +17,9 @@ app = FastAPI()
 
 origins = [
     "http://localhost:5173",
-    "https://flashcard-frontend-rosy.vercel.app"
+    "https://flashcard-frontend-rosy.vercel.app",
+    "https://flashcard-frontend-git-main-sriram-hathwars-projects.vercel.app",
+    "https://flashcard-frontend-imowb96v0-sriram-hathwars-projects.vercel.app"
 ]
 
 app.add_middleware(
