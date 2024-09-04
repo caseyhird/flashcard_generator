@@ -22,6 +22,7 @@ ANSWER_PROMPT = """Use these sources from my notes to answer a question: {source
 Here's the question I want to answer. Give me the answer to this question and nothing else. 
 Keep your answer to no more than ~20 words. {question}  """
 VECTOR_DB_CHUNK_SIZE = 500
+MAX_CONCURRENCY = 5
 
 # TODO define LLM and embedding model choices
 
@@ -110,7 +111,7 @@ def gen_vector_store(
     chunks = text_splitter.split_documents([Document(full_text)])
     return Chroma.from_documents(chunks, embedding=embedding_model)
 
-def gen_create_flashcard(llm: BaseChatModel, question: str, vector_store: VectorStore) -> FlashCard:
+def gen_create_flashcard(llm: BaseChatModel, questions: List[str], vector_store: VectorStore) -> List[FlashCard]:
     def format_sources_list(sources_list):
         return [s.page_content for s in sources_list]
 
@@ -130,8 +131,10 @@ def gen_create_flashcard(llm: BaseChatModel, question: str, vector_store: Vector
     ).assign(
         answer=(prompt_template | llm | format_answer)
     )
-    response = chain.invoke({"question": question})
-    return FlashCard(question, response["sources_list"], response["answer"])
+
+    inputs = [{"question": q} for q in questions]
+    response = chain.batch(inputs, config={"max_concurrency": MAX_CONCURRENCY})
+    return [FlashCard(r["question"], r["sources_list"], r["answer"]) for r in response]
 
 
 def generate_flashcards(
@@ -148,11 +151,8 @@ def generate_flashcards(
     questions = gen_questions(llm, pdf_content_chunks)
     vector_store = gen_vector_store(text, TogetherEmbeddings())
     
-    flashcards = []
     start_time = time.time()
-    for question in questions: 
-        flashcard = gen_create_flashcard(llm, question, vector_store)
-        flashcards.append(flashcard)
+    flashcards = gen_create_flashcard(llm, questions, vector_store)
     logging.info(f"Got answers and sources in {time.time() - start_time:.3f} seconds")
     
     return flashcards
