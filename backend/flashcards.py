@@ -10,6 +10,8 @@ from langchain_core.documents.base import Document
 from dataclasses import dataclass
 from langchain_openai import ChatOpenAI
 import os
+import time
+import logging
 
 QUESTION_PROMPT = """Here are some notes that I took: {pdf_content}. 
 Give me one study question for these notes. Don't say anything else or add any context/formatting around this question.  """
@@ -32,12 +34,24 @@ class FlashCard:
         print("S: ", self.sources[0])
         print("A: ", self.answer)
 
+def calculate_time(func):
+    def wrapper(*args, **kwargs):
+        begin = time.time()        
+        result = func(*args, **kwargs)
+        end = time.time()
+        logging.info(f"Finished {func.__name__} in {end - begin:.3f} seconds")
+        return result
+
+    return wrapper
+
+
 # (1) PDF --> string
 '''
 This is already done in the server.py step when the user uploads the file.  We opted not to copy this function from Google colab.
 '''
 
 # (2) chunk pdf text and apply prompt
+@calculate_time
 def chunk_pdf_for_questions_prompt(
         full_text: str,
     ) -> List[str]:
@@ -58,6 +72,7 @@ def chunk_pdf_for_questions_prompt(
     return text_splitter.split_text(full_text)
 
 # (3) list of questions results from passing this to the LLM
+@calculate_time
 def gen_questions(
         llm: BaseChatModel, 
         pdf_content_chunks: List[str]
@@ -74,6 +89,7 @@ def gen_questions(
     return questions
 
 # (4) create and populate vector DB
+@calculate_time
 def gen_vector_store(
         full_text: str, 
         embedding_model: Embeddings,
@@ -116,10 +132,12 @@ def generate_flashcards(
     vector_store = gen_vector_store(text, TogetherEmbeddings())
     
     flashcards = []
+    start_time = time.time()
     for question in questions: 
         sources = gen_sources(question, vector_store)
         answer = gen_answer(llm, question, sources)
         flashcard = FlashCard(question, sources, answer)
         flashcards.append(flashcard)
+    logging.info(f"Got answers and sources in {time.time() - start_time:.3f} seconds")
     
     return flashcards
