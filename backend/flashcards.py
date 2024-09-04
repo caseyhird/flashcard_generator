@@ -14,7 +14,7 @@ import time
 import logging
 
 QUESTION_PROMPT = """Here are some notes that I took: {pdf_content}. 
-Give me a few study questions for these notes. Keep each question to no more than ~20 words and return only these questions divided by newline characters.
+Give me 1-3 flashcard questions for these notes. Keep each question to no more than ~20 words and return only these questions divided by newline characters.
 Don't add any sort of numbering or bullet points with * or - to the questions, just have the text of the questions and the separating newline characters.
 Don't say anything else.  """
 ANSWER_PROMPT = """Use these sources from my notes to answer a question: {sources}
@@ -84,9 +84,11 @@ def gen_questions(
     prompt_template = PromptTemplate.from_template(QUESTION_PROMPT) 
     chain = prompt_template | llm
     # TODO: look into concurrency of langchain llm invocations
+    inputs = [{"pdf_content": chunk} for chunk in pdf_content_chunks]
+    response = chain.batch(inputs)
+
     questions = []
-    for chunk in pdf_content_chunks:
-        r = chain.invoke({"pdf_content": chunk})
+    for r in response:
         qs = [q.strip() for q in r.content.split('\n')]
         questions += qs
     return questions
