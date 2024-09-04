@@ -14,7 +14,9 @@ import time
 import logging
 
 QUESTION_PROMPT = """Here are some notes that I took: {pdf_content}. 
-Give me one study question for these notes. Don't say anything else or add any context/formatting around this question.  """
+Give me a few study questions for these notes. Keep each question to no more than ~20 words and return only these questions divided by newline characters.
+Don't add any sort of numbering or bullet points with * or - to the questions, just have the text of the questions and the separating newline characters.
+Don't say anything else.  """
 ANSWER_PROMPT = """Use these sources from my notes to answer a question: {sources}
 Here's the question I want to answer. Give me the answer to this question and nothing else. 
 Keep your answer to no more than ~20 words. {question}  """
@@ -65,8 +67,8 @@ def chunk_pdf_for_questions_prompt(
     """
     # NOTE: currently prompt_template_len overestimates num tokens by using num characters
     # TODO set with pdf_chunk_size = lm_context_len - prompt_template_len - num_questions*max_question_len
-    pdf_chunk_size = 1500
-    chunk_overlap = 200
+    pdf_chunk_size = 2000
+    chunk_overlap = 100
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=pdf_chunk_size, chunk_overlap=chunk_overlap) 
 
     return text_splitter.split_text(full_text)
@@ -85,7 +87,8 @@ def gen_questions(
     questions = []
     for chunk in pdf_content_chunks:
         r = chain.invoke({"pdf_content": chunk})
-        questions.append(r.content)
+        qs = [q.strip() for q in r.content.split('\n')]
+        questions += qs
     return questions
 
 # (4) create and populate vector DB
