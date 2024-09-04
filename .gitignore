@@ -1,2 +1,4 @@
 backend/__pycache__
 backend/flashcards-backend/
+test_data/test*
+.env
