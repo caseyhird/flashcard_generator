@@ -1,6 +1,7 @@
 # Script to test the flashcards API without running the server
 
-from flashcards import generate_flashcards, FlashCard
+from log_filters import HttpxFilter, OpenAIFilter
+from flashcards import generate_flashcards
 import logging
 import argparse
 import pdfplumber
@@ -24,13 +25,17 @@ in_file_name = args.input
 out_file_name = TEST_DIR + (args.out if args.out is not None else DEFAULT_OUT_FILE)
 log_file_name = TEST_DIR + (args.log if args.log is not None else DEFAULT_LOG_FILE)
 
-if not os.path.exists(log_file_name):
-    open(log_file_name, 'w').close()
+# Create file if it doesn't yet exist
+with open(log_file_name, 'w'):
+    os.truncate(log_file_name, 0)  # Delete file contents
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
     filename=log_file_name,
 )
+
+logging.getLogger('httpx').addFilter(HttpxFilter())
+logging.getLogger('openai._base_client').addFilter(OpenAIFilter())
 
 input_text = ""
 with pdfplumber.open(in_file_name) as pdf:
