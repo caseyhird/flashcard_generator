@@ -12,6 +12,7 @@ from langchain_openai import ChatOpenAI
 import os
 import time
 import logging
+from langchain_core.runnables import RunnablePassthrough
 
 QUESTION_PROMPT = """Here are some notes that I took: {pdf_content}. 
 Give me 1-3 flashcard questions for these notes. Keep each question to no more than ~20 words and return only these questions divided by newline characters.
@@ -109,23 +110,34 @@ def gen_vector_store(
     chunks = text_splitter.split_documents([Document(full_text)])
     return Chroma.from_documents(chunks, embedding=embedding_model)
 
-# (5) & (6) Get sources for each question from vector store
-def gen_sources(question: str, vector_store: VectorStore) -> List[str]:
-    # TODO: allow for more sources, store keeps returning copies of the same result
-    results = vector_store.similarity_search(question, k=1) 
-    return [r.page_content for r in results]
+def gen_create_flashcard(llm: BaseChatModel, question: str, vector_store: VectorStore) -> FlashCard:
+    def format_sources_list(sources_list):
+        return [s.page_content for s in sources_list]
 
-# (7) Use Q & S to get answer from LM
-def gen_answer(llm: BaseChatModel, question: str, sources: List[str]) -> str:
+    def format_prompt_input(input):
+        return "\n\n".join(input["sources_list"])
+
+    def format_answer(llm_response):
+        return llm_response.content
+    
+    # TODO: allow for more sources, store keeps returning copies of the same result
+    retriever = vector_store.as_retriever(search_kwargs={'k': 1})
     prompt_template = PromptTemplate.from_template(ANSWER_PROMPT)
-    chain = prompt_template | llm
-    response = chain.invoke({"sources": "\n\n".join(sources), "question": question})
-    return response.content
+    chain = RunnablePassthrough.assign(
+        sources_list=(retriever | format_sources_list)
+    ).assign(
+        sources=format_prompt_input
+    ).assign(
+        answer=(prompt_template | llm | format_answer)
+    )
+    response = chain.invoke({"question": question})
+    return FlashCard(question, response["sources_list"], response["answer"])
+
 
 def generate_flashcards(
         text: str
     ) -> List[FlashCard]:
-    # TODO add logging
+    # TODO add error logging
     llm = ChatOpenAI(
         base_url="https://api.together.xyz/v1",
         api_key=os.environ["TOGETHER_API_KEY"],
@@ -139,9 +151,7 @@ def generate_flashcards(
     flashcards = []
     start_time = time.time()
     for question in questions: 
-        sources = gen_sources(question, vector_store)
-        answer = gen_answer(llm, question, sources)
-        flashcard = FlashCard(question, sources, answer)
+        flashcard = gen_create_flashcard(llm, question, vector_store)
         flashcards.append(flashcard)
     logging.info(f"Got answers and sources in {time.time() - start_time:.3f} seconds")
     
