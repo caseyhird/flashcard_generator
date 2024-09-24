@@ -1,6 +1,7 @@
 from fastapi import FastAPI, File, UploadFile
 from pdfplumber import PDF
 import io
+import os
 from flashcards import generate_flashcards, FlashCard
 from typing import List
 import logging

@@ -22,7 +22,6 @@ ANSWER_PROMPT = """Use these sources from my notes to answer a question: {source
 Here's the question I want to answer. Give me the answer to this question and nothing else. 
 Keep your answer to no more than ~20 words. {question}  """
 VECTOR_DB_CHUNK_SIZE = 500
-MAX_CONCURRENCY = 5
 
 # TODO define LLM and embedding model choices
 
@@ -31,12 +30,6 @@ class FlashCard:
     question: str
     sources: List[str]
     answer: str
-
-    # TODO: can delete -- only for debugging
-    def __print__(self):
-        print("Q: ", self.question)
-        print("S: ", self.sources[0])
-        print("A: ", self.answer)
 
 def calculate_time(func):
     def wrapper(*args, **kwargs):
@@ -79,20 +72,25 @@ def chunk_pdf_for_questions_prompt(
 @calculate_time
 def gen_questions(
         llm: BaseChatModel, 
-        pdf_content_chunks: List[str]
+        pdf_content_chunks: List[str],
+        max_concurrency: int
     ) -> List[str]:
     """Uses the given the LM & prompts to generate study questions"""
-    # TODO: handle extracting multiple questions per chunk
     prompt_template = PromptTemplate.from_template(QUESTION_PROMPT) 
     chain = prompt_template | llm
-    # TODO: look into concurrency of langchain llm invocations
+    
+    logging.info(f"Generating questions from {len(pdf_content_chunks)} chunks")
     inputs = [{"pdf_content": chunk} for chunk in pdf_content_chunks]
-    response = chain.batch(inputs)
+    response = chain.batch(inputs, config={"max_concurrency": max_concurrency})
 
     questions = []
     for r in response:
         qs = [q.strip() for q in r.content.split('\n')]
         questions += qs
+    # filter empty quesitons
+    questions = [q for q in questions if not q == ""]
+
+    logging.info(f"Generated {len(questions)} questions")
     return questions
 
 # (4) create and populate vector DB
@@ -111,7 +109,10 @@ def gen_vector_store(
     chunks = text_splitter.split_documents([Document(full_text)])
     return Chroma.from_documents(chunks, embedding=embedding_model)
 
-def gen_create_flashcard(llm: BaseChatModel, questions: List[str], vector_store: VectorStore) -> List[FlashCard]:
+def gen_create_flashcard(llm: BaseChatModel, questions: List[str], vector_store: VectorStore, max_concurrency: int) -> List[FlashCard]:
+    def extract_question(input):
+        return input["question"]
+    
     def format_sources_list(sources_list):
         return [s.page_content for s in sources_list]
 
@@ -125,7 +126,7 @@ def gen_create_flashcard(llm: BaseChatModel, questions: List[str], vector_store:
     retriever = vector_store.as_retriever(search_kwargs={'k': 1})
     prompt_template = PromptTemplate.from_template(ANSWER_PROMPT)
     chain = RunnablePassthrough.assign(
-        sources_list=(retriever | format_sources_list)
+        sources_list=(extract_question | retriever | format_sources_list)
     ).assign(
         sources=format_prompt_input
     ).assign(
@@ -133,13 +134,15 @@ def gen_create_flashcard(llm: BaseChatModel, questions: List[str], vector_store:
     )
 
     inputs = [{"question": q} for q in questions]
-    response = chain.batch(inputs, config={"max_concurrency": MAX_CONCURRENCY})
+    response = chain.batch(inputs, config={"max_concurrency": max_concurrency})
     return [FlashCard(r["question"], r["sources_list"], r["answer"]) for r in response]
 
 
 def generate_flashcards(
         text: str
     ) -> List[FlashCard]:
+    max_concurrency = int(os.environ["MAX_CONCURRENCY"])
+
     # TODO add error logging
     llm = ChatOpenAI(
         base_url="https://api.together.xyz/v1",
@@ -148,11 +151,11 @@ def generate_flashcards(
     )
 
     pdf_content_chunks = chunk_pdf_for_questions_prompt(text) 
-    questions = gen_questions(llm, pdf_content_chunks)
+    questions = gen_questions(llm, pdf_content_chunks, max_concurrency)
     vector_store = gen_vector_store(text, TogetherEmbeddings())
     
     start_time = time.time()
-    flashcards = gen_create_flashcard(llm, questions, vector_store)
+    flashcards = gen_create_flashcard(llm, questions, vector_store, max_concurrency)
     logging.info(f"Got answers and sources in {time.time() - start_time:.3f} seconds")
     
     return flashcards

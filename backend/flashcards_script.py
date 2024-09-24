@@ -42,7 +42,6 @@ with pdfplumber.open(in_file_name) as pdf:
     for page in pdf.pages:
         input_text += page.extract_text()
 
-
 flashcards = generate_flashcards(input_text)
 logging.info(f"Generated {len(flashcards)} flashcards")
 
