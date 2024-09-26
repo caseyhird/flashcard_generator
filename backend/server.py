@@ -1,8 +1,8 @@
 from fastapi import FastAPI, File, UploadFile
 from pdfplumber import PDF
 import io
-import os
-from flashcards import generate_flashcards, FlashCard
+from backend.flashcards_model import create_flashcards_model, FlashCard
+from backend.flashcards_model_v2 import create_flashcards_model_v2
 from typing import List
 import logging
 import sys
@@ -35,8 +35,10 @@ app.add_middleware(
 def read_root():
     return "This is the root"
 
+@app.post("/create-flashcards/")
 @app.post("/uploadpdf/")
-async def create_upload_file(file: UploadFile = File(...)) -> List[FlashCard]:
+async def create_flashcards(file: UploadFile = File(...)) -> List[FlashCard]:
+    logging.info(f"Running create_flashcards")
     logging.info(f"Received file of size {file.size}")
 
     pdf_content = await file.read()
@@ -46,7 +48,26 @@ async def create_upload_file(file: UploadFile = File(...)) -> List[FlashCard]:
     logging.info(f"Extracted text of length {len(text)}")
     logging.info(f"Generating flashcards ...")
     try:
-        flashcards = generate_flashcards(text)
+        flashcards = create_flashcards_model(text)
+        logging.info(f"Generated {len(flashcards)} flashcards")
+    except Exception as e:
+        logging.error(f"Error generating flashcards: {e}")
+        raise e
+    return flashcards
+
+@app.post("/create-flashcards-v2/")
+async def create_flashcards_v2(file: UploadFile = File(...)) -> List[FlashCard]:
+    logging.info(f"Running create_flashcards_v2")
+    logging.info(f"Received file of size {file.size}")
+
+    pdf_content = await file.read()
+    pdf = PDF(io.BytesIO(pdf_content))
+    text = "".join([page.extract_text() for page in pdf.pages])
+
+    logging.info(f"Extracted text of length {len(text)}")
+    logging.info(f"Generating flashcards ...")
+    try:
+        flashcards = create_flashcards_v2_model(text)
         logging.info(f"Generated {len(flashcards)} flashcards")
     except Exception as e:
         logging.error(f"Error generating flashcards: {e}")

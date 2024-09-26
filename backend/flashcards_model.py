@@ -138,7 +138,7 @@ def gen_create_flashcard(llm: BaseChatModel, questions: List[str], vector_store:
     return [FlashCard(r["question"], r["sources_list"], r["answer"]) for r in response]
 
 
-def generate_flashcards(
+def create_flashcards_model(
         text: str
     ) -> List[FlashCard]:
     max_concurrency = int(os.environ["MAX_CONCURRENCY"])

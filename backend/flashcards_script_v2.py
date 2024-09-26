@@ -1,7 +1,7 @@
 # Script to test the flashcards API without running the server
 
 from log_filters import HttpxFilter, OpenAIFilter
-from backend.flashcards_model import create_flashcards_model
+from flashcards_model_v2 import create_flashcards_model_v2
 import logging
 import argparse
 import pdfplumber
@@ -42,7 +42,7 @@ with pdfplumber.open(in_file_name) as pdf:
     for page in pdf.pages:
         input_text += page.extract_text()
 
-flashcards = create_flashcards_model(input_text)
+flashcards = create_flashcards_model_v2(input_text)
 logging.info(f"Generated {len(flashcards)} flashcards")
 
 # Check if the file exists, if not create it
