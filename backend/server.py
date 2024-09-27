@@ -1,12 +1,16 @@
 from fastapi import FastAPI, File, UploadFile
 from pdfplumber import PDF
 import io
-from backend.flashcards_model import create_flashcards_model, FlashCard
-from backend.flashcards_model_v2 import create_flashcards_model_v2
+import os
+from flashcards_model import create_flashcards_model, FlashCard
+from flashcards_model_v2 import create_flashcards_model_v2
 from typing import List
 import logging
 import sys
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -67,7 +71,7 @@ async def create_flashcards_v2(file: UploadFile = File(...)) -> List[FlashCard]:
     logging.info(f"Extracted text of length {len(text)}")
     logging.info(f"Generating flashcards ...")
     try:
-        flashcards = create_flashcards_v2_model(text)
+        flashcards = create_flashcards_model_v2(text)
         logging.info(f"Generated {len(flashcards)} flashcards")
     except Exception as e:
         logging.error(f"Error generating flashcards: {e}")
@@ -76,4 +80,4 @@ async def create_flashcards_v2(file: UploadFile = File(...)) -> List[FlashCard]:
 
 if __name__ == '__main__':
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=80)
+    uvicorn.run("server:app", host="0.0.0.0", port=80, reload=(os.getenv("MODE") == "development"))
